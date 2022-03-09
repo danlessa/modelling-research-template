@@ -1,5 +1,4 @@
-from .parts.environment import *
-from .parts.agents import *
+from prey_predator.logic import *
 
 partial_state_update_block = [
     {

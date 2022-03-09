@@ -3,14 +3,14 @@ import random
 from uuid import uuid4
 
 # Behaviors
-def digest_and_olden(params, substep, state_history, prev_state):
+def p_digest_and_olden(params, substep, state_history, prev_state):
     agents = prev_state['agents']
     delta_food = {agent: -1 for agent in agents.keys()}
     delta_age = {agent: +1 for agent in agents.keys()}
     return {'agent_delta_food': delta_food,
           'agent_delta_age': delta_age}
 
-def move_agents(params, substep, state_history, prev_state):
+def p_move_agents(params, substep, state_history, prev_state):
     """
     Move agents.
     """
@@ -27,7 +27,7 @@ def move_agents(params, substep, state_history, prev_state):
             continue
     return {'update_agent_location': new_locations}
 
-def reproduce_agents(params, substep, state_history, prev_state):
+def p_reproduce_agents(params, substep, state_history, prev_state):
     """
     Generates an new agent through an nearby agent pair, subject to rules.
     Not done.
@@ -70,7 +70,7 @@ def reproduce_agents(params, substep, state_history, prev_state):
                 busy_locations.append(reproduction_location)
     return {'agent_delta_food': agent_delta_food,'agent_create': new_agents}
 
-def feed_prey(params, substep, state_history, prev_state):
+def p_feed_prey(params, substep, state_history, prev_state):
     """
     Feeds the hungry prey with all food located on its site.
     """
@@ -93,7 +93,7 @@ def feed_prey(params, substep, state_history, prev_state):
 
 
 
-def hunt_prey(params, substep, state_history, prev_state):
+def p_hunt_prey(params, substep, state_history, prev_state):
     """
     Feeds the hungry predators with an random nearby prey.
     """
@@ -121,7 +121,7 @@ def hunt_prey(params, substep, state_history, prev_state):
     return {'agent_delta_food': agent_delta_food}
 
 
-def natural_death(params, substep, state_history, prev_state):
+def p_natural_death(params, substep, state_history, prev_state):
     """
     Remove agents which are old or hungry enough.
     """
@@ -138,7 +138,7 @@ def natural_death(params, substep, state_history, prev_state):
 
 
 # Mechanisms
-def agent_food_age(params, substep, state_history, prev_state, policy_input):
+def s_agent_food_age(params, substep, state_history, prev_state, policy_input):
     delta_food_by_agent = policy_input['agent_delta_food']
     delta_age_by_agent = policy_input['agent_delta_age']
     updated_agents = prev_state['agents'].copy()
@@ -149,13 +149,13 @@ def agent_food_age(params, substep, state_history, prev_state, policy_input):
         updated_agents[agent]['age'] += delta_age
     return ('agents', updated_agents)
 
-def agent_location(params, substep, state_history, prev_state, policy_input):
+def s_agent_location(params, substep, state_history, prev_state, policy_input):
     updated_agents = prev_state['agents'].copy()
     for label, location in policy_input['update_agent_location'].items():
         updated_agents[label]['location'] = location
     return ('agents', updated_agents)
 
-def agent_create(params, substep, state_history, prev_state, policy_input):
+def s_agent_create(params, substep, state_history, prev_state, policy_input):
     updated_agents = prev_state['agents'].copy()
     for label, food in policy_input['agent_delta_food'].items():
         updated_agents[label]['food'] += food
@@ -164,21 +164,42 @@ def agent_create(params, substep, state_history, prev_state, policy_input):
     return ('agents', updated_agents)
 
 
-def site_food(params, substep, state_history, prev_state, policy_input):
+def s_site_food(params, substep, state_history, prev_state, policy_input):
     updated_sites = prev_state['sites'].copy()
     for label, delta_food in policy_input['site_delta_food'].items():
         updated_sites[label] += delta_food
     return ('sites', updated_sites)
 
-def agent_food(params, substep, state_history, prev_state, policy_input):
+def s_agent_food(params, substep, state_history, prev_state, policy_input):
     updated_agents = prev_state['agents'].copy()
     for label, delta_food in policy_input['agent_delta_food'].items():
         updated_agents[label]['food'] += delta_food
     return ('agents', updated_agents)
 
 
-def agent_remove(params, substep, state_history, prev_state, policy_input):
+def s_agent_remove(params, substep, state_history, prev_state, policy_input):
     agents_to_remove = policy_input['remove_agents']
     surviving_agents = {k: v for k, v in prev_state['agents'].items()
                         if k not in agents_to_remove}
     return ('agents', surviving_agents)
+
+import numpy as np
+from .utils import *
+
+
+# Behaviors
+def p_grow_food(params, substep, state_history, prev_state):
+    """
+    Increases the food supply in all sites, subject to an maximum.
+    """
+    regenerated_sites = calculate_increment(prev_state['sites'],
+                                          params['food_growth_rate'],
+                                          params['maximum_food_per_site'])
+    return {'update_food': regenerated_sites}
+
+
+# Mechanisms
+def s_update_food(params, substep, state_history, prev_state, policy_input):
+    key = 'sites'
+    value = policy_input['update_food']
+    return (key, value)
